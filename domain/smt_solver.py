@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+
+"""
+Implementation of the SMT Solver Configuration Domain.
+"""
+
+from typing import Any, Optional
+import math
+from collections import Counter
+
+from . import Domain
+from smt_instance import SMTInstance, load_smt_data
+from feature_engine import Feature
+from prompt_builder import load_prompt_template
+from trainer.random_forest import RandomForestTrainer
+
+DataPoint = SMTInstance
+
+
+class SMTSolver(Domain):
+    def __init__(self):
+        # We'll add prompt templates later
+        self._split_prompt_template = None  # load_prompt_template("prompts/smt_split.txt")
+        self._funsearch_prompt_template = None  # load_prompt_template("prompts/smt_funsearch.txt")
+
+    def domain_name(self) -> str:
+        return "smt_solver"
+
+    def load_dataset(self, path: str, max_size: int) -> list[DataPoint]:
+        return load_smt_data(path, max_instances=max_size)
+
+    def input_of(self, dp: DataPoint) -> Any:
+        """The input that features operate on - the SMT benchmark string."""
+        return dp.benchmark
+
+    def label_of(self, dp: DataPoint) -> set:
+        """The label we're trying to predict - set of option sets that solve this benchmark."""
+        return dp.option_sets
+
+    def leaf_prediction(self, datapoints: list[DataPoint]) -> str:
+        """
+        Return the option set that solves the most instances.
+        Takes the union of all option sets and returns the most frequent one.
+        """
+        if not datapoints:
+            return ""
+        
+        # Collect all option sets from all instances
+        all_option_sets = []
+        for dp in datapoints:
+            all_option_sets.extend(dp.option_sets)
+        
+        if not all_option_sets:
+            return ""
+        
+        # Return the most common option set
+        counter = Counter(all_option_sets)
+        return counter.most_common(1)[0][0]
+
+    def leaf_error(self, datapoints: list[DataPoint]) -> float:
+        """
+        Return the fraction of instances that don't contain the predicted option set.
+        """
+        if not datapoints:
+            return 0.0
+        
+        predicted_option_set = self.leaf_prediction(datapoints)
+        
+        # Count how many instances contain this option set
+        correct = sum(1 for dp in datapoints if predicted_option_set in dp.option_sets)
+        
+        return 1.0 - (correct / len(datapoints))
+
+    def prediction_error(self, pred: Any, label: Any) -> float:
+        """
+        Error is 1.0 if predicted option set is not in the label set, 0.0 if it is.
+        """
+        return 0.0 if pred in label else 1.0
+
+    def code_execution_namespace(self) -> dict[str, Any]:
+        raise NotImplementedError("Namespace for executing feature code not yet implemented")
+
+    def best_split_for_feature(
+        self,
+        examples: list[DataPoint],
+        feature: Feature,
+        min_side_ratio: float,
+    ) -> tuple[Optional[Feature], float, list[DataPoint], list[DataPoint], float]:
+        """Format prompt for D-ID3 feature generation. TODO: implement later."""
+        raise NotImplementedError("Prompt formatting not yet implemented")
+
+
+    def format_split_prompt(
+        self,
+        n_output_features: int,
+        examples: list[Any],
+        split_context: Optional[str],
+    ) -> str:
+        """Format prompt for D-ID3 feature generation. TODO: implement later."""
+        raise NotImplementedError("Prompt formatting not yet implemented")
+
+    def format_funsearch_prompt(
+        self,
+        n_output_features: int,
+        existing_features_with_importances: list[tuple[Feature, float]],
+    ) -> str:
+        """Format prompt for FunSearch feature generation. TODO: implement later."""
+        raise NotImplementedError("Prompt formatting not yet implemented")
+
+    def train_and_evaluate_simple_predictor(
+        self,
+        all_features: list[Feature],
+        training_set: list[DataPoint],
+        validation_set: list[DataPoint],
+        training_parameters: dict[str, Any] = {},
+    ) -> tuple[Any, float, float]:
+        """Train a random forest on the features."""
+        
+        trainer = RandomForestTrainer(
+            features_spec={"features": [f.code for f in all_features]},
+            task_type="classification",
+            domain_name=self.domain_name(),
+            model_type="base_predictor",
+            **training_parameters,
+        )
+
+        model, metrics = trainer.train(training_set, validation_set, None)
+        
+        # Return accuracy as (1 - error rate)
+        train_error = 1.0 - metrics["train"]["accuracy"]
+        valid_error = 1.0 - metrics["valid"]["accuracy"]
+        
+        return model, train_error, valid_error
