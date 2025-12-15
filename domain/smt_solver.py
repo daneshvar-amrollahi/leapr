@@ -6,6 +6,7 @@ Implementation of the SMT Solver Configuration Domain.
 
 from typing import Any, Optional
 import math
+import re
 from collections import Counter
 
 from . import Domain
@@ -78,7 +79,15 @@ class SMTSolver(Domain):
         return 0.0 if pred in label else 1.0
 
     def code_execution_namespace(self) -> dict[str, Any]:
-        raise NotImplementedError("Namespace for executing feature code not yet implemented")
+        """Provide namespace for feature code execution."""
+        return {
+            "math": math,
+            "re": re,
+            "len": len,
+            "str": str,
+            "float": float,
+            "int": int,
+        }
 
     def best_split_for_feature(
         self,
@@ -97,7 +106,8 @@ class SMTSolver(Domain):
         split_context: Optional[str],
     ) -> str:
         """Format prompt for D-ID3 feature generation. TODO: implement later."""
-        raise NotImplementedError("Prompt formatting not yet implemented")
+        # Dummy prompt for testing with manual features
+        return "Generate features for SMT benchmarks"
 
     def format_funsearch_prompt(
         self,
@@ -105,7 +115,8 @@ class SMTSolver(Domain):
         existing_features_with_importances: list[tuple[Feature, float]],
     ) -> str:
         """Format prompt for FunSearch feature generation. TODO: implement later."""
-        raise NotImplementedError("Prompt formatting not yet implemented")
+        # Dummy prompt for testing with manual features
+        return "Generate features for SMT benchmarks"
 
     def train_and_evaluate_simple_predictor(
         self,

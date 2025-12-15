@@ -1,2 +1,10 @@
 *.pyc
 __pycache__
+
+# Large dataset files
+datasets/smt/*.csv
+venv/
+outputs/
+results/
+*.log
+.DS_Store

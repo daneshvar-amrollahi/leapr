@@ -13,10 +13,12 @@ import util
 from chess_position import load_chess_data
 from image_sample import load_image_data
 from text_sample import load_text_data
+from smt_instance import load_smt_data
 
 from domain.chess import Chess
 from domain.image_classification import ImageClassification
 from domain.text_classification import TextClassification
+from domain.smt_solver import SMTSolver
 
 
 logging.basicConfig(
@@ -92,6 +94,16 @@ def main(cfg: DictConfig):
         if len(all_samples) > cfg.max_size:
             all_samples = random.sample(all_samples, cfg.max_size)
             random.shuffle(all_samples)
+
+    elif domain_name == "smt":
+        logger.info("Loading SMT solver dataset")
+        domain = SMTSolver()
+        
+        # Load from CSV dataset
+        dataset_path = cfg.get("dataset_path", "datasets/smt/dataset_part1of8.csv")
+        all_samples = load_smt_data(dataset_path, max_instances=cfg.max_size)
+        
+        logger.info(f"Loaded {len(all_samples)} SMT instances")
 
     else:
         raise ValueError(f"Unknown domain: {domain_name}")

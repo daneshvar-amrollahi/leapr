@@ -1,10 +1,15 @@
 import logging
 from functools import cache
+import os
 
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
+
+# Debug flag: Set to True to use manual features instead of LLM
+DEBUG_USE_MANUAL_FEATURES = os.environ.get('USE_MANUAL_FEATURES', 'False').lower() == 'true'
+MANUAL_FEATURES_FILE = 'manual_smt_features.py'
 
 @cache
 def load_llm(model: str):
@@ -31,6 +36,33 @@ def generate_features(
     prompt: str,
 ) -> list[str]:
     """Generate new chess features using an LLM."""
+    
+    # Debug mode: Use manual features instead of LLM
+    if DEBUG_USE_MANUAL_FEATURES:
+        logger.info(f"DEBUG MODE: Using manual features from {MANUAL_FEATURES_FILE}")
+        try:
+            with open(MANUAL_FEATURES_FILE, 'r') as f:
+                content = f.read()
+            # Extract only the function definitions (skip comments)
+            features = []
+            current_feature = []
+            for line in content.split('\n'):
+                if line.strip().startswith('def feature('):
+                    if current_feature:
+                        features.append('\n'.join(current_feature))
+                    current_feature = [line]
+                elif current_feature and (line.startswith('    ') or line.strip() == ''):
+                    current_feature.append(line)
+                elif current_feature and not line.strip().startswith('#'):
+                    features.append('\n'.join(current_feature))
+                    current_feature = []
+            if current_feature:
+                features.append('\n'.join(current_feature))
+            logger.info(f"Loaded {len(features)} manual features")
+            return features
+        except FileNotFoundError:
+            logger.error(f"Manual features file {MANUAL_FEATURES_FILE} not found, falling back to LLM")
+    
     print('Prompt:')
     print('###' * 20)
     print(prompt)

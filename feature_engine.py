@@ -124,6 +124,15 @@ def prepare_supervised_data(
         data_points = [s.text for s in samples]
         targets = [s.target for s in samples]
 
+    elif domain_name == "smt_solver":
+        from domain.smt_solver import SMTSolver
+
+        domain = SMTSolver()
+        data_points = [s.benchmark for s in samples]
+        # Convert each set of option sets into a single label (string representation)
+        # This treats each unique combination of option sets as a separate class
+        targets = ["|||".join(sorted(s.option_sets)) if s.option_sets else "" for s in samples]
+
     else:
         from domain.chess import Chess
 

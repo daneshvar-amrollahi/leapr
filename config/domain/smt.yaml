@@ -1,0 +1,3 @@
+_target_: domain.smt_solver.SMTSolver
+domain_name: smt
+dataset: datasets/smt/dataset_part1of8.csv

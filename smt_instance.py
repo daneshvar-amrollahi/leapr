@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 from typing import Set
 import csv
+import sys
 from collections import defaultdict
+
+# Increase CSV field size limit to handle large SMT benchmarks
+csv.field_size_limit(sys.maxsize)
 
 
 @dataclass
