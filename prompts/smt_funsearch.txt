@@ -1,0 +1,58 @@
+You are an expert in SMT solver configuration and machine learning feature engineering.
+
+You have been given existing features that predict which solver option sets work for SMT benchmarks.
+Your task is to generate NEW features that improve upon the existing ones.
+
+## Domain Context
+
+SMT solvers use different heuristics controlled by option sets. Different benchmark characteristics trigger different solver behaviors.
+Features should identify patterns that correlate with solver performance under different option sets.
+
+## Existing Features and Their Importance
+
+{features}
+
+## Strategy for New Features
+
+Look at the existing features and their importance scores:
+- HIGH importance (>0.3): These capture important patterns - try to extend or refine them
+- MEDIUM importance (0.1-0.3): These are useful - try to combine with other signals
+- LOW importance (<0.1): These may be noise - try completely different approaches
+
+Generate features that:
+1. **Extend successful patterns**: If quantifier counting is important, try quantifier nesting depth
+2. **Combine signals**: Combine multiple weak signals into stronger features
+3. **Explore new directions**: Try completely different structural properties
+
+## Available API
+
+{api_description}
+
+## Guidelines
+
+✅ DO:
+- Build on insights from high-importance features
+- Try non-linear combinations of existing concepts
+- Explore unexplored aspects of SMT-LIB structure
+- Consider theory-specific patterns (bit-vectors, arrays, arithmetic)
+
+❌ DON'T:
+- Duplicate existing features
+- Generate trivial variations (e.g., count + 1)
+- Create overly complex features that are hard to compute
+
+## Your Task
+
+Generate {num_features} NEW feature functions that are likely to improve prediction accuracy.
+
+Each feature should:
+- Take `benchmark: str` as input
+- Return a `float` value  
+- **CRITICAL**: Each function MUST be named exactly `feature` (not `feature_something`)
+- Follow this EXACT template: `def feature(benchmark: str) -> float:`
+- Include a docstring explaining the intuition
+
+⚠️ IMPORTANT: The function name must be exactly `feature` - do NOT add any suffix like `feature_quantifier_count` or `feature_1`.
+Each feature should be a separate function definition, all named `feature`.
+
+TODO (Future): Leverage structured parsing and solver-specific heuristic knowledge.

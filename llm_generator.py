@@ -68,7 +68,7 @@ def generate_features(
     print(prompt)
     print('###' * 20)
 
-    logger.info(f"Generating discriminant chess features using model {model}")
+    logger.info(f"Generating features using model {model}")
 
     try:
         llm = load_llm(model)
@@ -106,8 +106,8 @@ def _parse_features(content: str) -> list[str]:
     while i < len(lines):
         line = lines[i].strip()
 
-        # Start capturing when we see def feature
-        if line.startswith("def feature("):
+        # Start capturing when we see def feature_ or def feature(
+        if line.startswith("def feature"):
             if capturing and current_feature.strip():
                 features.append(current_feature)
             current_feature = lines[i] + "\n"
@@ -117,7 +117,7 @@ def _parse_features(content: str) -> list[str]:
         elif capturing and (
             line.startswith("```")
             or line == "### END"
-            or line.startswith("def feature(")
+            or line.startswith("def feature")
             or (line.startswith("#") and "explanation" in line.lower())
             or line.startswith("These features")
         ):
@@ -127,7 +127,7 @@ def _parse_features(content: str) -> list[str]:
             capturing = False
 
             # If this line starts a new feature, handle it
-            if line.startswith("def feature("):
+            if line.startswith("def feature"):
                 current_feature = lines[i] + "\n"
                 capturing = True
 

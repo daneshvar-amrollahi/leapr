@@ -20,9 +20,8 @@ DataPoint = SMTInstance
 
 class SMTSolver(Domain):
     def __init__(self):
-        # We'll add prompt templates later
-        self._split_prompt_template = None  # load_prompt_template("prompts/smt_split.txt")
-        self._funsearch_prompt_template = None  # load_prompt_template("prompts/smt_funsearch.txt")
+        self._split_prompt_template = load_prompt_template("prompts/smt_split.txt")
+        self._funsearch_prompt_template = load_prompt_template("prompts/smt_funsearch.txt")
 
     def domain_name(self) -> str:
         return "smt_solver"
@@ -105,18 +104,84 @@ class SMTSolver(Domain):
         examples: list[Any],
         split_context: Optional[str],
     ) -> str:
-        """Format prompt for D-ID3 feature generation. TODO: implement later."""
-        # Dummy prompt for testing with manual features
-        return "Generate features for SMT benchmarks"
+        """Format prompt for generating features to split a node in the decision tree."""
+        
+        # TODO (Future): Add structured SMT-LIB parsing to enable more sophisticated features
+        # TODO (Future): Add domain-specific knowledge about solver strategies
+        
+        api = """
+## Available Python API
+
+When writing features, you have access to:
+- `benchmark`: The SMT-LIB benchmark as a string
+- `math` module: Standard mathematical operations
+- `re` module: Regular expressions for pattern matching
+- Standard Python string methods: `.count()`, `.find()`, `.split()`, etc.
+
+Example usage:
+```python
+import re
+import math
+
+def feature(benchmark: str) -> float:
+    # Count nested quantifiers using regex
+    pattern = r'\\(forall.*\\(forall'
+    return float(len(re.findall(pattern, benchmark)))
+```
+"""
+        
+        def format_instance(inst: SMTInstance) -> str:
+            """Format an SMT instance for the prompt."""
+            option_sets_str = ", ".join(sorted(inst.option_sets))
+            benchmark_preview = inst.benchmark[:300] + "..." if len(inst.benchmark) > 300 else inst.benchmark
+            return f"Benchmark preview:\n{benchmark_preview}\n\nOption sets that solve it: {option_sets_str}\n" + "="*60 + "\n"
+        
+        examples_str = "\n".join([format_instance(ex) for ex in examples[:5]])  # Show first 5 examples
+        
+        context_str = split_context if split_context else "Root node (all training data)"
+        
+        return self._split_prompt_template.format(
+            api_description=api,
+            subtree_path=context_str,
+            examples=examples_str,
+            num_features=n_output_features,
+        )
 
     def format_funsearch_prompt(
         self,
         n_output_features: int,
         existing_features_with_importances: list[tuple[Feature, float]],
     ) -> str:
-        """Format prompt for FunSearch feature generation. TODO: implement later."""
-        # Dummy prompt for testing with manual features
-        return "Generate features for SMT benchmarks"
+        """Format prompt for FunSearch iterative feature generation."""
+        
+        # TODO (Future): Add structured SMT-LIB parsing to enable more sophisticated features
+        # TODO (Future): Add domain-specific knowledge about solver strategies
+        
+        api = """
+Available Python API:
+- `benchmark: str` - The SMT-LIB benchmark
+- `math` module - Mathematical operations
+- `re` module - Regular expressions
+- Standard Python string operations
+"""
+        
+        def format_feature_with_importance(f: Feature, importance: float) -> str:
+            """Format a feature with its importance score."""
+            return f"Importance: {importance:.3f}\n{f.code}\n" + "-"*60
+        
+        if existing_features_with_importances:
+            features_str = "\n\n".join([
+                format_feature_with_importance(f, imp)
+                for f, imp in existing_features_with_importances
+            ])
+        else:
+            features_str = "<No existing features yet - this is the first iteration>"
+        
+        return self._funsearch_prompt_template.format(
+            api_description=api,
+            num_features=n_output_features,
+            features=features_str,
+        )
 
     def train_and_evaluate_simple_predictor(
         self,

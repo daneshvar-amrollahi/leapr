@@ -1,0 +1,92 @@
+You are an expert in SMT (Satisfiability Modulo Theories) solvers and their configuration.
+
+Your task is to generate Python features that analyze SMT-LIB benchmarks to predict which solver option sets will solve them efficiently.
+
+## Domain Context
+
+SMT solvers use different heuristics and strategies controlled by option sets (e.g., "--mbqi", "--relevant-triggers --enum-inst").
+Different benchmarks trigger different paths in the solver's heuristics, leading to different behaviors.
+Your features should identify characteristics that indicate which solver paths (and thus option sets) will lead to a SOLVE.
+
+## What Makes a Good Feature
+
+✅ GOOD features:
+- Identify structural properties of the benchmark (quantifier patterns, theory combinations, formula complexity)
+- Correlate with solver heuristics (e.g., quantifier instantiation, E-matching, model-based quantifier instantiation)
+- Discriminate between benchmarks that need different option sets
+- Are computable efficiently from the benchmark string
+
+❌ BAD features:
+- Generic statistics that don't relate to solver behavior (e.g., total character count)
+- Properties that are uniform across all benchmarks
+- Computationally expensive operations
+- Features that don't help distinguish which option set to use
+
+## Available API
+
+You have access to the benchmark as a string in SMT-LIB format.
+
+Available in the execution namespace:
+- `math`: Standard Python math module
+- `re`: Regular expressions for pattern matching
+- Standard Python string operations
+
+## SMT-LIB Format Reference
+
+Common constructs:
+- `(set-logic LOGIC)`: Theory being used (e.g., QF_LIA, ABV, UFLIA)
+- `(declare-fun ...)`: Function declarations
+- `(assert ...)`: Assertions/constraints
+- `(forall ...)`, `(exists ...)`: Quantifiers
+- `(_ BitVec n)`: Bit-vector types
+- Array operations: `select`, `store`
+
+## Example Features
+
+Here are some examples to inspire you:
+
+```python
+def feature(benchmark: str) -> float:
+    """Count quantifier alternations (forall/exists nesting)"""
+    # Quantifier alternations often require specific instantiation strategies
+    forall_count = benchmark.count('forall')
+    exists_count = benchmark.count('exists')
+    return float(forall_count + exists_count)
+
+def feature(benchmark: str) -> float:
+    """Check if benchmark uses bit-vector arithmetic"""
+    # Bit-vector logic often benefits from specific solving strategies
+    return 1.0 if 'BitVec' in benchmark else 0.0
+
+def feature(benchmark: str) -> float:
+    """Ratio of assertions to declarations"""
+    # High ratio suggests constraint-heavy benchmarks
+    asserts = benchmark.count('(assert')
+    declares = benchmark.count('(declare-fun')
+    return float(asserts) / max(float(declares), 1.0)
+```
+
+## Examples from Current Dataset
+
+{examples}
+
+## Your Task
+
+Generate {num_features} NEW Python feature functions that:
+1. Take a benchmark string as input
+2. Return a float value
+3. **CRITICAL**: Each function MUST be named exactly `feature` (not `feature_something`)
+4. Follow this EXACT template: `def feature(benchmark: str) -> float:`
+5. Include a docstring explaining what the feature measures and why it matters for solver configuration
+
+⚠️ IMPORTANT: The function name must be exactly `feature` - do NOT add any suffix like `feature_quantifier_count` or `feature_1`.
+Each feature should be a separate function definition, all named `feature`.
+
+Focus on features that identify patterns triggering different solver heuristics.
+
+{api_description}
+
+TODO (Future): We will add structured parsing of SMT-LIB benchmarks to enable more sophisticated features.
+TODO (Future): Add domain-specific knowledge about solver strategies and their triggers.
+
+Current context: {subtree_path}
