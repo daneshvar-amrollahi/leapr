@@ -7,6 +7,7 @@ from .trainer import Trainer
 from .utils import (
     evaluate_regression_model,
     evaluate_classification_model,
+    evaluate_multilabel_model,
     prepare_train_valid_split,
 )
 
@@ -57,6 +58,7 @@ class RandomForestTrainer(Trainer):
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
         self.model_type = model_type
+        self.option_set_vocab = None  # Will be set during training for SMT domain
 
     def train(
         self,
@@ -69,19 +71,35 @@ class RandomForestTrainer(Trainer):
             f"Training Random Forest for {self.task_type} with {len(self.features)} features"
         )
 
+        # For SMT domain, build and store vocabulary
+        if self.domain_name == "smt_solver":
+            from feature_engine import build_option_set_vocabulary
+            self.option_set_vocab = build_option_set_vocabulary(train_positions)
+            logger.info(f"Built vocabulary with {len(self.option_set_vocab)} unique option sets")
+
         X_train, y_train, X_valid, y_valid = prepare_train_valid_split(
             self.features, train_positions, valid_positions, self.domain_name
         )
 
         if self.task_type == "classification":
-            model = RandomForestClassifier(
+            base_classifier = RandomForestClassifier(
                 n_estimators=self.n_estimators,
                 max_depth=self.max_depth,
                 min_samples_leaf=self.min_samples_leaf,
                 random_state=self.random_state,
                 n_jobs=-1,
             )
-            evaluate_fn = evaluate_classification_model
+            
+            # For SMT domain, use multi-label classification
+            if self.domain_name == "smt_solver":
+                from sklearn.multioutput import MultiOutputClassifier
+                model = MultiOutputClassifier(base_classifier, n_jobs=-1)
+                logger.info("Using MultiOutputClassifier for multi-label SMT classification")
+                evaluate_fn = lambda m, X, y: evaluate_multilabel_model(m, X, y, self.option_set_vocab)
+            else:
+                model = base_classifier
+                evaluate_fn = evaluate_classification_model
+            
             metric_key = "accuracy"
         else:
             model = RandomForestRegressor(
@@ -103,9 +121,15 @@ class RandomForestTrainer(Trainer):
 
         eval_metrics = None
         if eval_positions is not None:
-            X_test, y_test = prepare_supervised_data(
-                self.features, eval_positions, self.domain_name
-            )
+            if self.domain_name == "smt_solver":
+                X_test, y_test = prepare_supervised_data(
+                    self.features, eval_positions, self.domain_name, 
+                    option_set_vocab=self.option_set_vocab
+                )
+            else:
+                X_test, y_test = prepare_supervised_data(
+                    self.features, eval_positions, self.domain_name
+                )
             eval_metrics = evaluate_fn(model, X_test, y_test)
 
         logger.info("Done evaluating.")
@@ -124,6 +148,13 @@ class RandomForestTrainer(Trainer):
         }
 
         if self.model_type == "base_predictor":
+            # For MultiOutputClassifier (SMT domain), add feature_importances_ property
+            if self.domain_name == "smt_solver" and not hasattr(model, 'feature_importances_'):
+                # Average feature importances across all output classifiers
+                import numpy as np
+                importances_list = [est.feature_importances_ for est in model.estimators_]
+                model.feature_importances_ = np.mean(importances_list, axis=0)
+            
             return model, all_metrics
 
         assert (

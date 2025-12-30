@@ -5,7 +5,7 @@ import random
 import os
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any
+from typing import Any, Optional
 from itertools import repeat
 import warnings
 
@@ -98,12 +98,42 @@ def _compute_row(features: list[str], data: Any, domain=None) -> list[float]:
     return vals
 
 
+def build_option_set_vocabulary(samples: list) -> dict[str, int]:
+    """Build vocabulary mapping from SMT samples.
+    
+    Args:
+        samples: List of SMTInstance objects
+        
+    Returns:
+        Dictionary mapping option_set string -> index
+    """
+    all_option_sets = set()
+    for s in samples:
+        if hasattr(s, 'option_sets'):
+            all_option_sets.update(s.option_sets)
+    return {opt: i for i, opt in enumerate(sorted(all_option_sets))}
+
+
 def prepare_supervised_data(
     features: list[str],
     samples: list,
     domain_name: str = "chess",
+    option_set_vocab: Optional[dict] = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Prepare training data for supervised learning (classification or regression)."""
+    """Prepare training data for supervised learning (classification or regression).
+    
+    Args:
+        features: List of feature code strings
+        samples: List of data samples
+        domain_name: Name of the domain
+        option_set_vocab: For SMT domain, vocabulary mapping option_set -> index.
+                         If None, will be built from samples. Should be provided
+                         for validation/test sets to match training vocabulary.
+    
+    Returns:
+        X: Feature matrix (n_samples, n_features)
+        y: Labels (n_samples,) for single-label or (n_samples, n_classes) for multi-label
+    """
     if not samples:
         return np.array([]), np.array([])
 
@@ -129,9 +159,33 @@ def prepare_supervised_data(
 
         domain = SMTSolver()
         data_points = [s.benchmark for s in samples]
-        # Convert each set of option sets into a single label (string representation)
-        # This treats each unique combination of option sets as a separate class
-        targets = ["|||".join(sorted(s.option_sets)) if s.option_sets else "" for s in samples]
+        
+        # Multi-label encoding: each instance can have multiple valid option sets
+        # Build or use provided vocabulary of all unique option sets
+        if option_set_vocab is None:
+            # Build vocabulary from current samples (training set)
+            all_option_sets = set()
+            for s in samples:
+                all_option_sets.update(s.option_sets)
+            option_set_vocab = {opt: i for i, opt in enumerate(sorted(all_option_sets))}
+            logger.info(f"Built option set vocabulary with {len(option_set_vocab)} unique option sets")
+        else:
+            logger.info(f"Using provided vocabulary with {len(option_set_vocab)} option sets")
+        
+        # Store vocabulary on domain for later access
+        domain._option_set_vocabulary = option_set_vocab
+        
+        # Create multi-hot encoding for each sample
+        targets = []
+        for s in samples:
+            label_vector = [0] * len(option_set_vocab)
+            for opt in s.option_sets:
+                if opt in option_set_vocab:  # Only encode if in vocabulary
+                    label_vector[option_set_vocab[opt]] = 1
+            targets.append(label_vector)
+        
+        # Convert to numpy array (n_samples, n_option_sets)
+        targets = np.array(targets)
 
     else:
         from domain.chess import Chess

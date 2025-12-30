@@ -7,7 +7,7 @@ import argparse, shlex, subprocess, sys
 from pathlib import Path
 
 
-KNOWN_DOMAINS = ["chess", "image_classification", "text_classification"]
+KNOWN_DOMAINS = ["chess", "image_classification", "text_classification", "smt"]
 
 
 def parse_domain_dataset(raw: str) -> tuple[str, str | None]:
