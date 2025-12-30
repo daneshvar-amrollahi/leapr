@@ -1,4 +1,5 @@
 import random
+import os
 from typing import List, Tuple
 
 from chess_position import ChessPosition
@@ -6,6 +7,13 @@ from chess_position import ChessPosition
 
 def load_prompt_template(prompt_path: str) -> str:
     """Load the prompt template from a file."""
+    # Convert to absolute path if relative (to handle Hydra changing cwd)
+    if not os.path.isabs(prompt_path):
+        # Get the directory where this script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up to project root and then to prompts
+        prompt_path = os.path.join(script_dir, prompt_path)
+    
     with open(prompt_path, "r") as f:
         return f.read()
 
